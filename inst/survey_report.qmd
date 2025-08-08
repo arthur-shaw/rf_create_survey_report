@@ -1,0 +1,204 @@
+---
+format: docx
+title: "Survey Report for Republic of Fakestan"
+number-sections: true
+number-depth: 2
+# params:
+#   proj_dir: ""
+execute: 
+  eval: true
+  echo: false
+  warching: false
+  error: false
+---
+
+```{r}
+#| label: ingest data
+
+# NOTE: this is ad hoc data munging solely for purposes of an end-to-end demo
+
+data_dir <- "C:/Users/WB393438/resilient_futures/rf_create_survey_report/data"
+
+household_ids <- fs::path(data_dir, "rf_hholds.dta") |>
+	haven::read_dta() |>
+	dplyr::select(
+    interview__id,
+    region, urb_rur, psu_id, weight_hhold
+  )
+
+hhold_attributes <- fs::path(data_dir, "hhsize.dta") |>
+	haven::read_dta()
+
+survey_indicators_df <- household_ids |>
+	dplyr::left_join(
+    hhold_attributes,
+    by = "interview__id"
+  ) |>
+  # create a direct ID for PSUs
+  dplyr::rename(psu_code = psu_id) |>
+  dplyr::mutate(
+    psu_id = paste0(
+      # region
+      stringr::str_pad(string = region, width = 2, side = "left", pad = "0"),
+      # urban/rural
+      urb_rur,
+      # psu
+      stringr::str_pad(
+        string = psu_code,
+        width = 4,
+        side = "left",
+        pad = 0
+      )
+    )
+  ) |>
+  # specify the survey design
+	srvyr::as_survey_design(
+    ids = psu_id,
+    strata = c(region, urb_rur),
+    weights = weight_hhold
+  )
+
+```
+
+# Demography, Education, Financial Inclusion and Health 
+
+## Demography
+
+```{r}
+#| label: compute survey estimates of survey size
+
+# TODO: make a function to address tables of a similar form
+
+# by region
+hhsize_by_region <- survey_indicators_df |>
+	srvyr::group_by(region) |>
+	srvyr::summarise(
+    n_obs = srvyr::unweighted(srvyr::n()),
+    mean = srvyr::survey_mean(hhsize, na.rm = TRUE)
+  ) |>
+	srvyr::ungroup() |>
+	srvyr::mutate(area = labelled::to_character(region, levels = "labels"), .before = 1) |>
+	srvyr::select(-region, -mean_se)
+
+# by urban/rural
+hhsize_by_urb_rur <- survey_indicators_df |>
+	srvyr::group_by(urb_rur) |>
+	srvyr::summarise(
+    n_obs = srvyr::unweighted(srvyr::n()),
+    mean = srvyr::survey_mean(hhsize, na.rm = TRUE)
+  ) |>
+	srvyr::ungroup() |>
+	srvyr::mutate(area = labelled::to_character(urb_rur), .before = 1) |>
+	srvyr::select(-urb_rur, -mean_se)
+
+# overall/national
+hhsize_overall <- survey_indicators_df |>
+	srvyr::summarise(
+    n_obs = srvyr::unweighted(srvyr::n()),
+    mean = srvyr::survey_mean(hhsize, na.rm = TRUE)
+  ) |>
+	srvyr::mutate(area = "Fakestan", .before =1) |>
+	srvyr::select(-mean_se)
+
+
+```
+
+
+```{r}
+#| label: hhsize display table
+
+hhsize_tbl <- dplyr::bind_rows(
+    list(
+      "Overall" = hhsize_overall,
+      "Region" = hhsize_by_region,
+      "Sector" = hhsize_by_urb_rur
+    ),
+    .id = "group"
+  ) |>
+    dplyr::group_by(group)
+
+hhsize_tbl_styled <- hhsize_tbl |>
+  # make grouped data into a grouped data where group titles are row titles
+	flextable::as_grouped_data(groups = c("group")) |>
+  flextable::as_flextable(
+    # hide the grouping variable name as a stub in the row title
+    hide_grouplabel = TRUE
+  ) |>
+  # style the heading
+	flextable::bg(
+    bg = "#387990",
+    part = "header"
+  ) |>
+  flextable::color(
+    color = "white",
+    part = "header"
+  ) |>
+  # style the group sub-headings
+	flextable::bg(
+    bg = "#dbe7f3",
+    part = "body",
+    i = ~ !is.na(group)
+  ) |>
+	flextable::bold(
+    part = "body",
+    i = ~ !is.na(group),
+    bold = TRUE
+  ) |>
+  flextable::set_header_labels(
+    # note: could use a `values =` character vector of same length as number of cols
+    # this could be the values extracted from the value labels
+    area = "Area",
+    n_obs = "Obs. (n)",
+    mean = "Size"
+  ) |>
+	flextable::autofit() |>
+  flextable::colformat_double(
+    j = (grep(x = names(hhsize_tbl), pattern = "mean"))-1,
+    digits = 1,
+    na_str = "^"
+  ) |>
+  flextable::footnote(
+    i = 1,
+    j = 3,
+    value = flextable::as_paragraph(
+      "Results not statistically reliable, n<30"
+    ),
+    ref_symbols = "^"
+  ) |> 
+  flextable::footnote(
+    i = 1,
+    j = 3,
+    value = flextable::as_paragraph(
+      c(
+        "Records missing information for the disaggregate variables have been excluded from the disaggregated estimates. The unweighted sample size reflects this loss in observations; therefore, the sum of disaggregate sample sizes may not equal the overall sample size."
+      )
+    ),
+    ref_symbols = c("b"),
+    part = "footer"
+  ) |> 
+	flextable::add_footer_lines(
+    values = c(
+      "Source: Fakestan Survey 2025"
+    )
+  ) |>
+	flextable::fontsize(
+    size = 8,
+    part = "footer"
+  ) |>
+  flextable::padding(
+    padding.top = 0.75,
+    padding.bottom = 0.75,
+    part = "footer"
+  ) |> 
+  flextable::hline(
+    part = "body",
+    border = officer::fp_border(
+      color = "black",
+      style = "solid"
+    )
+  ) |>
+  # if table needs to break across pages, do not break within a group
+  flextable::paginate(group = "group")
+
+hhsize_tbl_styled
+```

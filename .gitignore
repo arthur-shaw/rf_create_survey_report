@@ -1,0 +1,4 @@
+.Rproj.user
+
+# do not track report output
+*.docx
