@@ -202,3 +202,109 @@ hhsize_tbl_styled <- hhsize_tbl |>
 
 hhsize_tbl_styled
 ```
+
+### Two bar plots
+
+```{r}
+#| label: bar chart for hhsize
+#| fig-asp: 0.618
+#| fig-width: 6
+#| fig-align: center
+#| fig-dpi: 300
+
+library(wbplot)
+
+plot_hhsize_by_region <- 
+  ggplot2::ggplot(
+    data = hhsize_by_region,
+    mapping = ggplot2::aes(
+      x = mean,
+      y = reorder(area, mean)
+    )
+  ) +
+  ggplot2::geom_col(fill = "blue") +
+  ggplot2::geom_text(
+    mapping = ggplot2::aes(
+      label = scales::label_number(
+        scale_cut = scales::cut_si(unit = ""),
+        accuracy = .1
+      )(mean)
+    ),
+    color = "white",
+    hjust = 1.2,
+    # size = 5,
+    fontface = "bold"
+  ) +
+  ggplot2::geom_vline(
+    data = hhsize_overall,
+    mapping = ggplot2::aes(xintercept = mean),
+    color = "red"
+  ) +
+  ggplot2::labs(title = "By region") +
+  wbplot::theme_wb(chartType = "bar") +
+  ggplot2::theme(
+    plot.title = ggplot2::element_text(
+      face = "plain",
+      size = 12
+    ),
+    axis.ticks.x = ggplot2::element_blank(),
+    axis.text.x = ggplot2::element_blank()
+  )
+
+plot_hhsize_by_urb_rur <- 
+  ggplot2::ggplot(
+    data = hhsize_by_urb_rur,
+    mapping = ggplot2::aes(
+      x = mean,
+      y = reorder(area, mean)
+    )
+  ) +
+  ggplot2::geom_col(fill = "blue") +
+  ggplot2::geom_text(
+    mapping = ggplot2::aes(
+      label = scales::label_number(
+        scale_cut = scales::cut_si(unit = ""),
+        accuracy = .1
+      )(mean)
+    ),
+    color = "white",
+    hjust = 1.2,
+    # size = 5,
+    fontface = "bold"
+  ) +
+  ggplot2::geom_vline(
+    data = hhsize_overall,
+    mapping = ggplot2::aes(xintercept = mean),
+    color = "red"
+  ) +
+  ggplot2::labs(title = "By sector") +
+  wbplot::theme_wb(chartType = "bar") +
+  ggplot2::theme(
+    plot.title = ggplot2::element_text(
+      face = "plain",
+      size = 12
+    ),
+    axis.ticks.x = ggplot2::element_blank(),
+    axis.text.x = ggplot2::element_blank()
+  )
+
+# hhsize_2_panel_bars <-
+# patchwork::`+`(
+# plot_hhsize_by_region, plot_hhsize_by_urb_rur
+# )
+
+library(patchwork)
+hhsize_2_panel_bars <- plot_hhsize_by_region + plot_hhsize_by_urb_rur +
+  patchwork::plot_annotation(
+    title = "Household size",
+    theme = ggplot2::theme(
+      plot.title = ggplot2::element_text(
+        size = 22,
+        face = "bold"
+      )
+    )
+  )
+
+hhsize_2_panel_bars
+```
+
