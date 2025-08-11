@@ -376,3 +376,23 @@ hhsize_2_panel_w_map
 
 ```
 
+### Map alone
+
+
+```{r}
+#| label: map alone
+#| fig-asp: 0.618
+#| fig-width: 6
+#| fig-align: center
+#| fig-dpi: 300
+
+hhsize_by_region_mapped +
+  ggplot2::labs(title = "Household size by region") +
+  ggplot2::theme(
+    plot.title = ggplot2::element_text(
+      size = 22,
+      face = "bold"
+    )
+  )
+
+```
