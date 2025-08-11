@@ -308,3 +308,71 @@ hhsize_2_panel_bars <- plot_hhsize_by_region + plot_hhsize_by_urb_rur +
 hhsize_2_panel_bars
 ```
 
+### Map and bar plot
+
+```{r}
+#| label: map and bar for hhsize
+#| fig-asp: 0.618
+#| fig-width: 6
+#| fig-align: center
+#| fig-dpi: 300
+
+map_dir <- "C:/Users/WB393438/resilient_futures/rf_create_survey_report/inst/map/bf_hno_admin_0_3"
+map_file <- "bf_admin1_hno_2022.shp"
+
+bfa_admin1_shapefile <- fs::path(map_dir, map_file) |>
+	sf::st_read(quiet = TRUE)
+
+hhsize_by_region_fix_typo <- hhsize_by_region |>
+	dplyr::mutate(
+    area = dplyr::if_else(
+      condition = area == "Boucle du Mouhoum",
+      true = "Boucle du Mouhoun",
+      false = area
+    )
+  )
+
+bfa_map_w_data <- bfa_admin1_shapefile |>
+	dplyr::left_join(
+    hhsize_by_region_fix_typo,
+    by = c("adm1_name1" = "area")
+  )
+
+hhsize_by_region_mapped <- ggplot2::ggplot(data = bfa_map_w_data) +
+  ggplot2::geom_sf(ggplot2::aes(fill = mean), color = "white", size = 0.2) +
+  ggplot2::scale_fill_viridis_c(
+    option = "mako",
+    direction = -1,
+    guide = ggplot2::guide_colorbar(
+      title = ggplot2::waiver(),
+      position = "bottom",
+      theme = ggplot2::theme(
+        legend.title = ggplot2::element_blank()
+      )
+    )
+  ) +
+  ggplot2::geom_sf_text(
+    ggplot2::aes(label = adm1_name1),
+    size = 3
+  ) +
+  ggplot2::theme_void() +
+  ggplot2::labs(
+    title = "By region",
+  )
+
+hhsize_2_panel_w_map <- hhsize_by_region_mapped + plot_hhsize_by_urb_rur +
+  patchwork::plot_layout(widths = c(2, 1), ncol = 2) +
+  patchwork::plot_annotation(
+    title = "Household size",
+    theme = ggplot2::theme(
+      plot.title = ggplot2::element_text(
+        size = 22,
+        face = "bold"
+      )
+    )
+  )
+
+hhsize_2_panel_w_map
+
+```
+
