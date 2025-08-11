@@ -1,0 +1,3 @@
+# do not track any map files
+*.zip
+*/*
